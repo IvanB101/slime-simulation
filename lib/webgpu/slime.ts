@@ -8,6 +8,7 @@ import { colorHexToVec3f } from "@/lib/math";
 export interface Slime {
   render: () => void;
   update: () => void;
+  destroy: () => void;
 }
 
 function bufferPaddingBytes(rowSize: number): number {
@@ -72,16 +73,19 @@ export type InitConfig = {
   size: [number, number];
 };
 
+const defs = makeShaderDataDefinitions(shaders);
+const uniform = makeStructuredView(defs.uniforms.ubo);
+
 function initRender(
   device: GPUDevice,
   canvas: HTMLCanvasElement,
   medium: GPUBuffer,
   config: RenderConfig,
-): () => void {
-  const defs = makeShaderDataDefinitions(shaders);
-  const uniform = makeStructuredView(defs.uniforms.ubo);
-
-  const context = canvas?.getContext("webgpu") as GPUCanvasContext;
+): {
+  render: () => void;
+  destroy: () => void;
+} {
+  const context = canvas.getContext("webgpu") as GPUCanvasContext;
   if (!context) {
     throw Error("could not create context");
   }
@@ -133,6 +137,7 @@ function initRender(
   });
 
   function render() {
+    uniform.set(config);
     uniform.set({
       time: performance.now(),
     });
@@ -155,7 +160,11 @@ function initRender(
     device.queue.submit([commandBuffer]);
   }
 
-  return render;
+  function destroy() {
+    context.unconfigure();
+  }
+
+  return { render, destroy };
 }
 
 export function slime(
@@ -298,10 +307,18 @@ export function slime(
     pass.end();
     device.queue.submit([encoder.finish()]);
   }
-  const render = initRender(device, canvas, mediumBufs[0], renderConfig);
+  const { render, destroy } = initRender(
+    device,
+    canvas,
+    mediumBufs[0],
+    renderConfig,
+  );
 
   return {
     render,
     update,
+    destroy: () => {
+      destroy();
+    },
   };
 }

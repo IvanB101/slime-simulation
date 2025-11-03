@@ -1,23 +1,16 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import Loader from "./Loader";
 import { initWebGPU, WebGPUContext } from "@/lib/webgpu";
 import { slime } from "@/lib/webgpu/slime";
 
-type State = "fallback" | "ready" | "initializing" | "checking support";
-
 async function initBg(
   context: WebGPUContext,
-  setState: Dispatch<SetStateAction<State>>,
   canvas: HTMLCanvasElement,
-) {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-
-  // const pixels = 800 * 600;
+): Promise<() => void> {
   const pixels = 400 * 300;
-  const aspect = width / height;
+  const aspect = window.innerWidth / window.innerHeight;
 
   const size: [number, number] = [
     Math.round(Math.sqrt(pixels * aspect)),
@@ -30,74 +23,49 @@ async function initBg(
   canvas.width = size[0];
   canvas.height = size[1];
 
-  var frameTime = 10000;
-  for (let i = 0; i < 10; i++) {
-    const start = performance.now();
-    surface.update();
-    surface.render();
-    await context.device.queue.onSubmittedWorkDone();
-    const finish = performance.now();
-    frameTime = Math.min(frameTime, finish - start);
-  }
-  if (frameTime > 35) {
-    setState("fallback");
-    return;
-  }
-
-  document.documentElement.style.cssText = `--slime-width: ${width}px`;
-  document.documentElement.style.cssText = `--slime-height: ${height}px`;
-
+  // TODO: add checks for fps
+  var handleAnimationFrame: number;
   (function loop() {
     surface.update();
     surface.render();
-    requestAnimationFrame(() => loop());
+    handleAnimationFrame = requestAnimationFrame(() => loop());
   })();
-  (document.getElementById("bg-loader") as HTMLElement).classList.add(
-    "[display:none]",
+
+  (document.getElementById("main-loader") as HTMLElement).classList.add(
+    "hidden",
   );
-  setState("ready");
+
+  return () => {
+    cancelAnimationFrame(handleAnimationFrame);
+    surface.destroy();
+  };
 }
 
-export default function Background() {
-  const [state, setState] = useState<State>("checking support");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export default function Background({ dummy }: { dummy: boolean }) {
   let context: WebGPUContext;
+  let cleanup = () => {};
 
   useEffect(() => {
     (async () => {
-      if (state !== "checking support") return;
-
       try {
+        cleanup();
         context = await initWebGPU();
-        setState("initializing");
+        const canvas = document.getElementById(
+          "main-canvas",
+        ) as HTMLCanvasElement;
 
-        await initBg(context, setState, canvasRef.current as HTMLCanvasElement);
+        cleanup = await initBg(context, canvas);
       } catch (e) {
-        setState("fallback");
+        // TODO: raise error
+        alert(e);
       }
     })();
   }, []);
 
-  if (state === "fallback") {
-    return (
-      <img
-        src="/fallback.png"
-        alt="background"
-        className="w-screen h-screen fixed overflow-hidden z-[-1] left-0 top-0"
-      />
-    );
-  }
-
   return (
-    <>
-      <Loader />)
-      <canvas
-        ref={canvasRef}
-        className="
-              w-[var(--slime-width)] h-[var(--slime-height)]
-              fixed overflow-hidden z-[-1] left-0 top-0 blur-xs
-          "
-      ></canvas>
-    </>
+    <div key={dummy + ""}>
+      <Loader id="main-loader" />
+      <canvas id="main-canvas"></canvas>
+    </div>
   );
 }

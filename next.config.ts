@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   compiler: {
     define: {
       Float16Array: "{}",
+      GPUShaderStage: "{}",
     },
   },
   turbopack: {

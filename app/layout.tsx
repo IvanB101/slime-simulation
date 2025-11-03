@@ -2,7 +2,6 @@ import { Archivo_Black, Roboto } from "next/font/google";
 import { ReactNode } from "react";
 
 import "./globals.css";
-import Background from "@/components/Background";
 
 const roboto = Roboto({
   variable: "--font-roboto",
@@ -18,11 +17,8 @@ const archivo = Archivo_Black({
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html>
-      <body className={`${roboto.variable} antialiased`}>
-        <div>{children}</div>
-        <Background />
-      </body>
+    <html lang="en">
+      <body className={`${roboto.variable} antialiased`}>{children}</body>
     </html>
   );
 }

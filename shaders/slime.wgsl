@@ -109,7 +109,12 @@ struct Config {
     sensoryAngle: f32,
     sensoryOffset: f32,
     size: vec2u,
-    padding: u32, // in number of u32
+    // pCD: f32, // probability of random changed in direction
+    // deposition: f32,
+    // stepSize: u32, // pixels
+    // sensonWidth: u32, // pixels
+    // boundary: bool,
+    // kernel: mat
 }
 
 fn idx(cords: vec2u) -> u32 {
