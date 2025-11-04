@@ -1,27 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
+import { RefObject } from "react";
 import Loader from "./Loader";
-import { initWebGPU, WebGPUContext } from "@/lib/webgpu";
-import { slime } from "@/lib/webgpu/slime";
+import { initCanvasContext, initWebGPU, WebGPUContext } from "@/lib/webgpu";
+import { slime, type Config } from "@/lib/webgpu/slime";
 
-async function initBg(
+let active = true;
+function toggleLoader() {
+  const loader = document.getElementById("bg-loader") as HTMLElement;
+  active = !active;
+  if (active) {
+    loader.classList.remove("hidden");
+  } else {
+    loader.classList.add("hidden");
+  }
+}
+
+function initBg(
   context: WebGPUContext,
-  canvas: HTMLCanvasElement,
-): Promise<() => void> {
-  const pixels = 400 * 300;
-  const aspect = window.innerWidth / window.innerHeight;
-
-  const size: [number, number] = [
-    Math.round(Math.sqrt(pixels * aspect)),
-    Math.round(Math.sqrt(pixels / aspect)),
-  ];
-  const surface = slime(context, canvas, {
-    size,
-    nAgents: 100000,
-  });
-  canvas.width = size[0];
-  canvas.height = size[1];
+  canvasContext: GPUCanvasContext,
+  config: Config,
+) {
+  // const pixels = 400 * 300;
+  // const aspect = window.innerWidth / window.innerHeight;
+  //
+  // const size: [number, number] = [
+  //   Math.round(Math.sqrt(pixels * aspect)),
+  //   Math.round(Math.sqrt(pixels / aspect)),
+  // ];
+  const surface = slime(context, canvasContext, config);
 
   // TODO: add checks for fps
   var handleAnimationFrame: number;
@@ -30,42 +37,50 @@ async function initBg(
     surface.render();
     handleAnimationFrame = requestAnimationFrame(() => loop());
   })();
-
-  (document.getElementById("main-loader") as HTMLElement).classList.add(
-    "hidden",
-  );
+  toggleLoader();
 
   return () => {
     cancelAnimationFrame(handleAnimationFrame);
-    surface.destroy();
   };
 }
 
-export default function Background({ dummy }: { dummy: boolean }) {
-  let context: WebGPUContext;
-  let cleanup = () => {};
+let context: WebGPUContext | undefined;
+let canvasContext: GPUCanvasContext | undefined;
+let cleanup = () => {};
 
-  useEffect(() => {
+export default function Background({
+  config,
+  canvasRef,
+}: {
+  config: Config;
+  canvasRef: RefObject<HTMLCanvasElement | undefined>;
+}) {
+  function setCanvasRef(canvas: HTMLCanvasElement) {
+    cleanup();
+    if (context && canvasContext) {
+      cleanup = initBg(context, canvasContext, config);
+      return;
+    }
+
     (async () => {
       try {
-        cleanup();
+        canvasRef.current = canvas;
         context = await initWebGPU();
-        const canvas = document.getElementById(
-          "main-canvas",
-        ) as HTMLCanvasElement;
-
-        cleanup = await initBg(context, canvas);
+        canvasContext = initCanvasContext(context, canvas);
+        canvas.width = config.slime.size[0];
+        canvas.height = config.slime.size[1];
+        cleanup = initBg(context, canvasContext, config);
       } catch (e) {
         // TODO: raise error
         alert(e);
       }
     })();
-  }, []);
+  }
 
   return (
-    <div key={dummy + ""}>
-      <Loader id="main-loader" />
-      <canvas id="main-canvas"></canvas>
+    <div className="flex flex-1 flex-col justify-center items-center h-screen bg-black">
+      <Loader id="bg-loader" />
+      <canvas ref={setCanvasRef} className="border-1 border-gray-500"></canvas>
     </div>
   );
 }

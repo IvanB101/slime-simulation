@@ -109,9 +109,9 @@ struct Config {
     sensoryAngle: f32,
     sensoryOffset: f32,
     size: vec2u,
+    deposition: f32,
+    stepSize: f32, // pixels
     // pCD: f32, // probability of random changed in direction
-    // deposition: f32,
-    // stepSize: u32, // pixels
     // sensonWidth: u32, // pixels
     // boundary: bool,
     // kernel: mat
@@ -169,10 +169,10 @@ fn updateAgents(@builtin(global_invocation_id) iid: vec3u) {
         angle -= 2. * PI;
     }
 
-    pos = wrap(pos + vec2f(cos(angle), sin(angle)));
+    pos = wrap(pos + vec2f(cos(angle), sin(angle)) * config.stepSize);
 
     agents[iid.x] = Agent(pos, angle);
-    medium1[idx(vec2u(round(agents[iid.x].pos)))] = 1.;
+    medium1[idx(vec2u(round(agents[iid.x].pos)))] = config.deposition;
 }
 
 @compute @workgroup_size(64, 1, 1)

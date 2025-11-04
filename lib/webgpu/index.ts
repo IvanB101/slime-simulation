@@ -22,3 +22,28 @@ export async function initWebGPU(): Promise<WebGPUContext> {
 
   return { device, adapter };
 }
+
+export function initCanvasContext(
+  { device }: WebGPUContext,
+  canvas: HTMLCanvasElement,
+): GPUCanvasContext {
+  const context = canvas.getContext("webgpu") as GPUCanvasContext;
+  if (!context) {
+    throw Error("could not create context");
+  }
+  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({
+    device,
+    format: presentationFormat,
+  });
+
+  return context;
+}
+
+type Map<T> = {
+  [key: string]: T;
+};
+
+export type Struct = {
+  [key: string]: number | number[] | Map<number | number[]>;
+};

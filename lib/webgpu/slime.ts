@@ -8,28 +8,17 @@ import { colorHexToVec3f } from "@/lib/math";
 export interface Slime {
   render: () => void;
   update: () => void;
-  destroy: () => void;
 }
 
-function bufferPaddingBytes(rowSize: number): number {
-  const elementSize = 1;
-  const size = rowSize * elementSize;
-  const paddingBytes = 256 - (size % 256);
+export type DisplayConfig = {
+  color: [number, number, number];
+};
 
-  return Math.ceil(paddingBytes / elementSize);
-}
+export const defaultDisplayConfig: DisplayConfig = {
+  color: colorHexToVec3f("#0C3B82"),
+};
 
-export type UserConfig = {
-  seed?: number;
-  nAgents?: number;
-  size: [number, number];
-  sensoryAngle?: number;
-  sensoryOffset?: number;
-  decay?: number;
-  turnRate?: number;
-  color?: [number, number, number];
-} & { [idx: string]: number | number[] };
-type Config = {
+export type SlimeConfig = {
   time: number;
   nAgents: number;
   size: [number, number];
@@ -37,40 +26,36 @@ type Config = {
   sensoryOffset: number;
   decay: number;
   turnRate: number;
-  padding: number;
+  deposition: number;
+  stepSize: number;
 } & { [idx: string]: number | number[] };
-const defaultConfig: Config = {
+
+export const defaultSlimeConfig: SlimeConfig = {
   time: 0,
   nAgents: 100000,
-  size: [0, 0],
+  size: [400, 400],
   sensoryAngle: Math.PI / 4,
   sensoryOffset: 5,
   decay: 0.7,
   turnRate: Math.PI / 8,
-  padding: bufferPaddingBytes(0),
+  deposition: 1,
+  stepSize: 1,
 };
 
-function completeConfig(userConfig: UserConfig): Config {
-  const config: Config = defaultConfig;
-  for (const key in config) {
-    if (userConfig[key]) {
-      config[key] = userConfig[key];
-    }
-  }
-  config.padding = bufferPaddingBytes(config.size[0]);
+export type Config = {
+  display: DisplayConfig;
+  slime: SlimeConfig;
+};
 
-  return config as Config;
-}
+type InitConfig = {
+  seed: number;
+  nAgents: number;
+  size: [number, number];
+};
 
 type RenderConfig = {
   size: [number, number];
   color: [number, number, number];
-};
-
-export type InitConfig = {
-  seed: number;
-  nAgents: number;
-  size: [number, number];
 };
 
 const defs = makeShaderDataDefinitions(shaders);
@@ -78,23 +63,10 @@ const uniform = makeStructuredView(defs.uniforms.ubo);
 
 function initRender(
   device: GPUDevice,
-  canvas: HTMLCanvasElement,
+  context: GPUCanvasContext,
   medium: GPUBuffer,
   config: RenderConfig,
-): {
-  render: () => void;
-  destroy: () => void;
-} {
-  const context = canvas.getContext("webgpu") as GPUCanvasContext;
-  if (!context) {
-    throw Error("could not create context");
-  }
-  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-  context.configure({
-    device,
-    format: presentationFormat,
-  });
-
+): () => void {
   const module = device.createShaderModule({
     label: "slime module",
     code: shaders,
@@ -107,7 +79,7 @@ function initRender(
     },
     fragment: {
       module,
-      targets: [{ format: presentationFormat }],
+      targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }],
     },
   });
   const renderPassDescriptor: GPURenderPassDescriptor = {
@@ -160,29 +132,24 @@ function initRender(
     device.queue.submit([commandBuffer]);
   }
 
-  function destroy() {
-    context.unconfigure();
-  }
-
-  return { render, destroy };
+  return render;
 }
 
 export function slime(
   { device }: WebGPUContext,
-  canvas: HTMLCanvasElement,
-  userConfig: UserConfig,
+  context: GPUCanvasContext,
+  { slime: config, display: displayConfig }: Config,
 ): Slime {
   const defs = makeShaderDataDefinitions(shaders);
   const time = performance.now();
-  const config = completeConfig(userConfig);
   const initConfig: InitConfig = {
-    seed: userConfig.seed || time,
+    seed: time,
     nAgents: config.nAgents,
     size: config.size,
   };
   const renderConfig: RenderConfig = {
     size: config.size,
-    color: userConfig.color || colorHexToVec3f("#0C3B82"),
+    color: displayConfig.color,
   };
 
   const module = device.createShaderModule({
@@ -282,6 +249,7 @@ export function slime(
   });
 
   function update() {
+    configView.set(config);
     configView.set({ time: performance.now() });
     device.queue.writeBuffer(configBuf, 0, configView.arrayBuffer);
 
@@ -307,18 +275,10 @@ export function slime(
     pass.end();
     device.queue.submit([encoder.finish()]);
   }
-  const { render, destroy } = initRender(
-    device,
-    canvas,
-    mediumBufs[0],
-    renderConfig,
-  );
+  const render = initRender(device, context, mediumBufs[0], renderConfig);
 
   return {
     render,
     update,
-    destroy: () => {
-      destroy();
-    },
   };
 }
