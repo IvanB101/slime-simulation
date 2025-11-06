@@ -1,59 +1,107 @@
 import { Struct } from "@/lib/webgpu";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
+
+import reloadIcon from "@/public/icons/reload.svg";
 
 export default function Slider({
   label,
-  range: [min, value, max],
-  step,
+  range: [min, value, max, def],
   object,
   field,
-  numberInput,
+  integer,
+  action,
 }: {
   label: string;
-  range: [number, number, number];
-  step?: number;
+  range: [number, number, number, number];
   object: object & Struct;
   field: string;
-  numberInput?: boolean;
+  integer?: boolean;
+  action?: Dispatch<SetStateAction<boolean>>;
 }) {
-  const [val, setVal] = useState(value);
+  const [val, setVal] = useState(value + "");
+  const [changed, setChanged] = useState(value !== def);
 
-  function onInput(event: React.FormEvent<HTMLInputElement>) {
-    let newVal = Number.parseFloat(event.currentTarget.value) || 0;
-    newVal = Math.max(min, Math.min(max, newVal));
+  function commitChange(newVal: number) {
+    setVal(newVal + "");
     object[field] = newVal;
-    setVal(newVal);
+    setChanged(newVal !== def);
+    if (action) {
+      action(true);
+    }
   }
 
+  function handleSlide(event: React.FormEvent<HTMLInputElement>) {
+    let newVal = Number.parseFloat(event.currentTarget.value);
+    newVal = Math.max(min, Math.min(max, newVal));
+    commitChange(newVal);
+  }
+
+  function handleInput(event: React.FormEvent<HTMLInputElement>) {
+    setVal(event.currentTarget.value);
+  }
+
+  function handleBlur() {
+    const newVal = Math.max(min, Math.min(max, Number.parseFloat(val)));
+    commitChange(newVal);
+  }
+
+  function handleKeys(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+
+    object[field] = Math.max(min, Math.min(max, Number.parseFloat(val) || min));
+    event.currentTarget.blur();
+  }
+
+  function restoreDefault() {
+    object[field] = def;
+    setVal(def + "");
+    setChanged(false);
+  }
+
+  console.log([min, value, max, def]);
+  const step = integer ? 1 : (max - min) / 100;
+
   return (
-    <div className="flex flex-col px-2 py-[2px]">
-      <label htmlFor={field}>{label}</label>
-      <div className="flex gap-3">
-        <input
-          className="slider"
-          type="range"
-          id={field}
-          name={field}
-          step={step}
-          min={min}
-          max={max}
-          value={val}
-          onInput={onInput}
-        />
-        {numberInput && (
-          <input
-            className="w-20 border-1 border-gray-500 px-1 rounded-md"
-            type="number"
-            step={step}
-            value={val}
-            min={min}
-            max={max}
-            id={field + "-value"}
-            name={field + "-value"}
-            onInput={onInput}
+    <>
+      <label htmlFor={field} className="col-span-full">
+        {label}
+      </label>
+      <input
+        className="slider col-span-6"
+        type="range"
+        id={field}
+        name={field}
+        step={step}
+        min={min}
+        max={max}
+        value={val}
+        onInput={handleSlide}
+      />
+      <input
+        className="border-1 border-gray-500 px-1 rounded-md col-span-4"
+        type="number"
+        step={step}
+        value={val}
+        min={min}
+        max={max}
+        id={field + "-value"}
+        name={field + "-value"}
+        onInput={handleInput}
+        onBlur={handleBlur}
+        onKeyDown={handleKeys}
+      />
+      {changed && (
+        <button
+          onClick={restoreDefault}
+          className="col-span-2 flex justify-center items-center"
+          title="Restore"
+        >
+          <div
+            dangerouslySetInnerHTML={{ __html: reloadIcon }}
+            className="size-6 fill-white"
           />
-        )}
-      </div>
-    </div>
+        </button>
+      )}
+    </>
   );
 }

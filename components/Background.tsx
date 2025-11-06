@@ -5,16 +5,9 @@ import Loader from "./Loader";
 import { initCanvasContext, initWebGPU, WebGPUContext } from "@/lib/webgpu";
 import { slime, type Config } from "@/lib/webgpu/slime";
 
-let active = true;
-function toggleLoader() {
-  const loader = document.getElementById("bg-loader") as HTMLElement;
-  active = !active;
-  if (active) {
-    loader.classList.remove("hidden");
-  } else {
-    loader.classList.add("hidden");
-  }
-}
+export const state = {
+  paused: false,
+};
 
 function initBg(
   context: WebGPUContext,
@@ -33,11 +26,14 @@ function initBg(
   // TODO: add checks for fps
   var handleAnimationFrame: number;
   (function loop() {
-    surface.update();
-    surface.render();
+    if (!state.paused) {
+      surface.update();
+      surface.render();
+    }
     handleAnimationFrame = requestAnimationFrame(() => loop());
   })();
-  toggleLoader();
+  const loader = document.getElementById("bg-loader") as HTMLElement;
+  loader.classList.add("hidden");
 
   return () => {
     cancelAnimationFrame(handleAnimationFrame);
@@ -56,7 +52,11 @@ export default function Background({
   canvasRef: RefObject<HTMLCanvasElement | undefined>;
 }) {
   function setCanvasRef(canvas: HTMLCanvasElement) {
+    if (!canvas) return;
+    canvas.width = config.size[0];
+    canvas.height = config.size[1];
     cleanup();
+
     if (context && canvasContext) {
       cleanup = initBg(context, canvasContext, config);
       return;
@@ -67,8 +67,6 @@ export default function Background({
         canvasRef.current = canvas;
         context = await initWebGPU();
         canvasContext = initCanvasContext(context, canvas);
-        canvas.width = config.slime.size[0];
-        canvas.height = config.slime.size[1];
         cleanup = initBg(context, canvasContext, config);
       } catch (e) {
         // TODO: raise error
@@ -79,7 +77,7 @@ export default function Background({
 
   return (
     <div className="flex flex-1 flex-col justify-center items-center h-screen bg-black">
-      <Loader id="bg-loader" />
+      <Loader />
       <canvas ref={setCanvasRef} className="border-1 border-gray-500"></canvas>
     </div>
   );

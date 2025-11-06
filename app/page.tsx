@@ -2,24 +2,33 @@
 
 import Background from "@/components/Background";
 import Config from "@/components/config";
-import { defaultDisplayConfig, defaultSlimeConfig } from "@/lib/webgpu/slime";
-import { useRef, useState } from "react";
+import Loader from "@/components/Loader";
+import { config } from "@/lib/webgpu/slime";
+import { useEffect, useRef, useState } from "react";
 
 export default function RootLayout() {
+  const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement | undefined>(undefined);
-  const [config, setConfig] = useState({
-    slime: {
-      ...defaultSlimeConfig,
-    },
-    display: {
-      ...defaultDisplayConfig,
-    },
-  });
+  const [startConfig, setStartConfig] = useState(config.default);
 
-  return (
+  useEffect(() => {
+    const savedConfig = localStorage.getItem("config");
+    if (savedConfig) {
+      setStartConfig(JSON.parse(savedConfig));
+      setLoading(false);
+    }
+  }, []);
+
+  return loading ? (
+    <Loader />
+  ) : (
     <div className="flex size-full">
-      <Config action={setConfig} config={config} canvasRef={canvasRef} />
-      <Background config={config} canvasRef={canvasRef} />
+      <Config
+        action={setStartConfig}
+        startConfig={startConfig}
+        canvasRef={canvasRef}
+      />
+      <Background config={startConfig} canvasRef={canvasRef} />
     </div>
   );
 }

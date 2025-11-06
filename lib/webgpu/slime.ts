@@ -14,37 +14,61 @@ export type DisplayConfig = {
   color: [number, number, number];
 };
 
-export const defaultDisplayConfig: DisplayConfig = {
-  color: colorHexToVec3f("#0C3B82"),
-};
-
-export type SlimeConfig = {
-  time: number;
-  nAgents: number;
-  size: [number, number];
+type NoReloadConfig = {
   sensoryAngle: number;
   sensoryOffset: number;
   decay: number;
   turnRate: number;
   deposition: number;
   stepSize: number;
-} & { [idx: string]: number | number[] };
-
-export const defaultSlimeConfig: SlimeConfig = {
-  time: 0,
-  nAgents: 100000,
-  size: [400, 400],
-  sensoryAngle: Math.PI / 4,
-  sensoryOffset: 5,
-  decay: 0.7,
-  turnRate: Math.PI / 8,
-  deposition: 1,
-  stepSize: 1,
 };
 
-export type Config = {
-  display: DisplayConfig;
-  slime: SlimeConfig;
+type ReloadConfig = {
+  nAgents: number;
+  size: [number, number];
+};
+
+type SlimeConfig = NoReloadConfig &
+  ReloadConfig & { [idx: string]: number | number[] };
+
+export type Config = SlimeConfig & DisplayConfig;
+
+export const config: {
+  default: Config;
+  mins: SlimeConfig;
+  maxs: SlimeConfig;
+} = {
+  default: {
+    color: colorHexToVec3f("#0C3B82"),
+    nAgents: 100000,
+    size: [400, 400],
+    sensoryAngle: Math.PI / 4,
+    sensoryOffset: 5,
+    decay: 0.7,
+    turnRate: Math.PI / 8,
+    deposition: 1,
+    stepSize: 1,
+  },
+  mins: {
+    nAgents: 1000,
+    size: [400, 400],
+    sensoryAngle: Math.PI / 8,
+    sensoryOffset: 1,
+    decay: 0.01,
+    turnRate: Math.PI / 8,
+    deposition: 0.01,
+    stepSize: 0.1,
+  },
+  maxs: {
+    nAgents: 1000000,
+    size: [4000, 4000],
+    sensoryAngle: Math.PI / 2,
+    sensoryOffset: 50,
+    decay: 1,
+    turnRate: Math.PI / 2,
+    deposition: 1,
+    stepSize: 5,
+  },
 };
 
 type InitConfig = {
@@ -138,7 +162,7 @@ function initRender(
 export function slime(
   { device }: WebGPUContext,
   context: GPUCanvasContext,
-  { slime: config, display: displayConfig }: Config,
+  config: Config,
 ): Slime {
   const defs = makeShaderDataDefinitions(shaders);
   const time = performance.now();
@@ -149,7 +173,7 @@ export function slime(
   };
   const renderConfig: RenderConfig = {
     size: config.size,
-    color: displayConfig.color,
+    color: config.color,
   };
 
   const module = device.createShaderModule({
