@@ -1,8 +1,13 @@
 "use client";
 
-import { RefObject } from "react";
+import { Dispatch, RefObject, SetStateAction } from "react";
 import Loader from "./Loader";
-import { initCanvasContext, initWebGPU, WebGPUContext } from "@/lib/webgpu";
+import {
+  initCanvasContext,
+  initWebGPU,
+  WebGPUContext,
+  WebGPUError,
+} from "@/lib/webgpu";
 import { slime, type Config } from "@/lib/webgpu/slime";
 
 export const state = {
@@ -44,12 +49,14 @@ let context: WebGPUContext | undefined;
 let canvasContext: GPUCanvasContext | undefined;
 let cleanup = () => {};
 
-export default function Background({
+export default function SlimeSim({
   config,
   canvasRef,
+  action,
 }: {
   config: Config;
   canvasRef: RefObject<HTMLCanvasElement | undefined>;
+  action: Dispatch<SetStateAction<WebGPUError | undefined>>;
 }) {
   function setCanvasRef(canvas: HTMLCanvasElement) {
     if (!canvas) return;
@@ -65,13 +72,20 @@ export default function Background({
     (async () => {
       try {
         canvasRef.current = canvas;
-        context = await initWebGPU();
-        canvasContext = initCanvasContext(context, canvas);
+        const contextRes = await initWebGPU();
+        if (!contextRes.ok) {
+          action(contextRes.error);
+          return;
+        }
+        context = contextRes.value;
+        const canvasContextRes = initCanvasContext(context, canvas);
+        if (!canvasContextRes.ok) {
+          action(canvasContextRes.error);
+          return;
+        }
+        canvasContext = canvasContextRes.value;
         cleanup = initBg(context, canvasContext, config);
-      } catch (e) {
-        // TODO: raise error
-        alert(e);
-      }
+      } catch (e) {}
     })();
   }
 
