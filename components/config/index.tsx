@@ -28,7 +28,6 @@ export default function Config({
   };
 
   function saveConfig() {
-    console.log(JSON.stringify(startConfig));
     localStorage.setItem("config", JSON.stringify(startConfig));
   }
 
@@ -74,7 +73,7 @@ export default function Config({
   }
 
   return (
-    <div className="flex flex-col py-2 bg-black border-r-1 border-gray-500 w-[300px] relative top-0 left-0">
+    <div className="flex flex-col py-2 bg-black border-r-1 border-gray-500 min-w-[300px] w-[300px] relative top-0 left-0">
       <div className="flex absolute left-full p-4 gap-4 top-0">
         <button onClick={restartSim} title="Restart">
           <div
@@ -98,7 +97,7 @@ export default function Config({
             name="display-stretch"
             onInput={toggleDisplay}
           />
-          <label htmlFor="display-stretch">Stretch</label>
+          <label htmlFor="display-stretch">Fit simulation</label>
         </div>
       </Section>
       <Section title="Simulation">

@@ -47,6 +47,7 @@ function initBg(
 
 let context: WebGPUContext | undefined;
 let canvasContext: GPUCanvasContext | undefined;
+let initializing = false;
 let cleanup = () => {};
 
 export default function SlimeSim({
@@ -68,6 +69,10 @@ export default function SlimeSim({
       cleanup = initBg(context, canvasContext, config);
       return;
     }
+
+    // Prevent double initialization
+    if (initializing) return;
+    initializing = true;
 
     (async () => {
       try {

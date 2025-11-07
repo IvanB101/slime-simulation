@@ -58,7 +58,6 @@ export default function Slider({
     setChanged(false);
   }
 
-  console.log([min, value, max, def]);
   const step = integer ? 1 : (max - min) / 100;
 
   return (
