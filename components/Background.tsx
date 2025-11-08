@@ -9,8 +9,9 @@ import {
   WebGPUError,
 } from "@/lib/webgpu";
 import { slime, type Config } from "@/lib/webgpu/slime";
+import Overlay from "./Overlay";
 
-export const state = {
+const state = {
   paused: false,
 };
 
@@ -53,25 +54,32 @@ let cleanup = () => {};
 export default function SlimeSim({
   config,
   canvasRef,
-  action,
+  setErrorAction,
+  setNeedsRestartAction,
 }: {
   config: Config;
   canvasRef: RefObject<HTMLCanvasElement | undefined>;
-  action: Dispatch<SetStateAction<WebGPUError | undefined>>;
+  setErrorAction: Dispatch<SetStateAction<WebGPUError | undefined>>;
+  setNeedsRestartAction: Dispatch<SetStateAction<boolean>>;
 }) {
-  function setCanvasRef(canvas: HTMLCanvasElement) {
+  function restartSim() {
+    const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = config.size[0];
-    canvas.height = config.size[1];
+
+    canvas.width = config.width;
+    canvas.height = config.height;
     cleanup();
 
     if (context && canvasContext) {
       cleanup = initBg(context, canvasContext, config);
       return;
     }
+  }
 
-    // Prevent double initialization
-    if (initializing) return;
+  function setCanvasRef(canvas: HTMLCanvasElement) {
+    if (!canvas || initializing) return;
+    canvas.width = config.width;
+    canvas.height = config.height;
     initializing = true;
 
     (async () => {
@@ -79,13 +87,13 @@ export default function SlimeSim({
         canvasRef.current = canvas;
         const contextRes = await initWebGPU();
         if (!contextRes.ok) {
-          action(contextRes.error);
+          setErrorAction(contextRes.error);
           return;
         }
         context = contextRes.value;
         const canvasContextRes = initCanvasContext(context, canvas);
         if (!canvasContextRes.ok) {
-          action(canvasContextRes.error);
+          setErrorAction(canvasContextRes.error);
           return;
         }
         canvasContext = canvasContextRes.value;
@@ -95,8 +103,13 @@ export default function SlimeSim({
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-center items-center h-screen bg-black">
+    <div className="flex flex-1 flex-col justify-center items-center h-screen bg-black relative">
       <Loader />
+      <Overlay
+        state={state}
+        restartSimAction={restartSim}
+        setNeedsRestartAction={setNeedsRestartAction}
+      />
       <canvas ref={setCanvasRef} className="border-1 border-gray-500"></canvas>
     </div>
   );

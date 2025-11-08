@@ -3,16 +3,16 @@ import { Dispatch, SetStateAction, useState } from "react";
 
 import reloadIcon from "@/public/icons/reload.svg";
 
-export default function Slider({
+export default function NumericVariable({
   label,
-  range: [min, value, max, def],
+  values: { min, value, max, def },
   object,
   field,
   integer,
   action,
 }: {
   label: string;
-  range: [number, number, number, number];
+  values: { min: number; value: number; max: number; def: number };
   object: object & Struct;
   field: string;
   integer?: boolean;
@@ -22,6 +22,7 @@ export default function Slider({
   const [changed, setChanged] = useState(value !== def);
 
   function commitChange(newVal: number) {
+    if (integer) newVal = Math.ceil(newVal);
     setVal(newVal + "");
     object[field] = newVal;
     setChanged(newVal !== def);
@@ -53,12 +54,11 @@ export default function Slider({
   }
 
   function restoreDefault() {
-    object[field] = def;
-    setVal(def + "");
-    setChanged(false);
+    commitChange(def);
   }
 
-  const step = integer ? 1 : (max - min) / 100;
+  let step = (max - min) / 100;
+  if (integer) step = Math.ceil(step);
 
   return (
     <>

@@ -14,7 +14,7 @@ export type DisplayConfig = {
   color: [number, number, number];
 };
 
-type NoReloadConfig = {
+export type NoReloadConfig = {
   sensoryAngle: number;
   sensoryOffset: number;
   decay: number;
@@ -23,53 +23,52 @@ type NoReloadConfig = {
   stepSize: number;
 };
 
-type ReloadConfig = {
+export type ReloadConfig = {
   nAgents: number;
-  size: [number, number];
+  width: number;
+  height: number;
 };
 
-type SlimeConfig = NoReloadConfig &
+export type SlimeConfig = NoReloadConfig &
   ReloadConfig & { [idx: string]: number | number[] };
 
 export type Config = SlimeConfig & DisplayConfig;
 
-export const config: {
-  default: Config;
-  mins: SlimeConfig;
-  maxs: SlimeConfig;
-} = {
-  default: {
-    color: colorHexToVec3f("#0C3B82"),
-    nAgents: 100000,
-    size: [400, 400],
-    sensoryAngle: Math.PI / 4,
-    sensoryOffset: 5,
-    decay: 0.7,
-    turnRate: Math.PI / 8,
-    deposition: 1,
-    stepSize: 1,
-  },
-  mins: {
-    nAgents: 1000,
-    size: [400, 400],
-    sensoryAngle: Math.PI / 8,
-    sensoryOffset: 1,
-    decay: 0.01,
-    turnRate: Math.PI / 8,
-    deposition: 0.01,
-    stepSize: 0.1,
-  },
-  maxs: {
+export const defaults: Config = {
+  color: colorHexToVec3f("#0C3B82"),
+  nAgents: 100000,
+  width: 400,
+  height: 400,
+  sensoryAngle: Math.PI / 4,
+  sensoryOffset: 5,
+  decay: 0.7,
+  turnRate: Math.PI / 8,
+  deposition: 1,
+  stepSize: 1,
+};
+
+export const mins: SlimeConfig = {
+  nAgents: 1000,
+  width: 100,
+  height: 100,
+  sensoryAngle: Math.PI / 8,
+  sensoryOffset: 1,
+  decay: 0.01,
+  turnRate: Math.PI / 8,
+  deposition: 0.01,
+  stepSize: 0.1,
+} as const;
+
+export const maxs: Omit<SlimeConfig, keyof { width: number; height: number }> =
+  {
     nAgents: 1000000,
-    size: [4000, 4000],
     sensoryAngle: Math.PI / 2,
     sensoryOffset: 50,
     decay: 1,
     turnRate: Math.PI / 2,
-    deposition: 1,
+    deposition: 5,
     stepSize: 5,
-  },
-};
+  };
 
 type InitConfig = {
   seed: number;
@@ -133,12 +132,7 @@ function initRender(
   });
 
   function render() {
-    uniform.set(config);
-    uniform.set({
-      time: performance.now(),
-    });
     device.queue.writeBuffer(uniformBuffer, 0, uniform.arrayBuffer);
-
     (
       renderPassDescriptor.colorAttachments as GPURenderPassColorAttachment[]
     )[0].view = context.getCurrentTexture().createView();
@@ -169,10 +163,10 @@ export function slime(
   const initConfig: InitConfig = {
     seed: time,
     nAgents: config.nAgents,
-    size: config.size,
+    size: [config.width, config.height],
   };
   const renderConfig: RenderConfig = {
-    size: config.size,
+    size: [config.width, config.height],
     color: config.color,
   };
 
@@ -202,7 +196,7 @@ export function slime(
     size: config.nAgents * 16,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
-  const size = config.size[0] * config.size[1] * 16;
+  const size = config.width * config.height * 16;
   const mediumBufs = [
     device.createBuffer({
       size,
@@ -272,6 +266,10 @@ export function slime(
     ],
   });
 
+  const mediumDispatch = Math.ceil((config.width * config.height) / 64);
+  const agentsDispatch = Math.ceil(config.nAgents / 64);
+  configView.set({ size: [config.width, config.height] });
+
   function update() {
     configView.set(config);
     configView.set({ time: performance.now() });
@@ -284,7 +282,7 @@ export function slime(
     });
     pass.setBindGroup(0, mediumBindGroup);
     pass.setPipeline(updateMediumPipeline);
-    pass.dispatchWorkgroups(Math.ceil((config.size[0] * config.size[1]) / 64));
+    pass.dispatchWorkgroups(mediumDispatch);
     pass.end();
     device.queue.submit([encoder.finish()]);
 
@@ -295,7 +293,7 @@ export function slime(
     });
     pass.setBindGroup(0, agentBindGroup);
     pass.setPipeline(updateAgentsPipeline);
-    pass.dispatchWorkgroups(Math.ceil(config.nAgents / 64));
+    pass.dispatchWorkgroups(agentsDispatch);
     pass.end();
     device.queue.submit([encoder.finish()]);
   }
