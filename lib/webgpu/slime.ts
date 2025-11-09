@@ -57,7 +57,7 @@ export const mins: SlimeConfig = {
   turnRate: Math.PI / 8,
   deposition: 0.01,
   stepSize: 0.1,
-} as const;
+};
 
 export const maxs: Omit<SlimeConfig, keyof { width: number; height: number }> =
   {
@@ -246,7 +246,6 @@ export function slime(
     size: configView.arrayBuffer.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  configView.set(config);
 
   const agentBindGroup = device.createBindGroup({
     layout: updateAgentsPipeline.getBindGroupLayout(0),
@@ -266,12 +265,13 @@ export function slime(
     ],
   });
 
+  configView.set(config);
   const mediumDispatch = Math.ceil((config.width * config.height) / 64);
   const agentsDispatch = Math.ceil(config.nAgents / 64);
   configView.set({ size: [config.width, config.height] });
 
   function update() {
-    configView.set(config);
+    configView.set({ ...config, nAgents: undefined });
     configView.set({ time: performance.now() });
     device.queue.writeBuffer(configBuf, 0, configView.arrayBuffer);
 

@@ -1,24 +1,22 @@
 "use client";
 
-import SlimeSim from "@/components/Background";
-import Config from "@/components/config";
+import SlimeSim from "@/components/SlimeSim";
 import Error from "@/components/Error";
 import Loader from "@/components/Loader";
 import { WebGPUError } from "@/lib/webgpu";
 import { defaults } from "@/lib/webgpu/slime";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+let config = defaults;
 
 export default function RootLayout() {
   const [loading, setLoading] = useState(true);
-  const [needsRestart, setNeedsRestart] = useState(false);
   const [error, setError] = useState<WebGPUError | undefined>(undefined);
-  const canvasRef = useRef<HTMLCanvasElement | undefined>(undefined);
-  const [startConfig, setStartConfig] = useState(defaults);
 
   useEffect(() => {
     const savedConfig = localStorage.getItem("config");
     if (savedConfig) {
-      setStartConfig(JSON.parse(savedConfig));
+      config = JSON.parse(savedConfig);
     }
     setLoading(false);
   }, []);
@@ -28,18 +26,7 @@ export default function RootLayout() {
   if (!loading)
     return (
       <div className="flex size-full relative">
-        <Config
-          startConfig={startConfig}
-          canvasRef={canvasRef}
-          needsRestart={needsRestart}
-          setNeedsRestartAction={setNeedsRestart}
-        />
-        <SlimeSim
-          config={startConfig}
-          canvasRef={canvasRef}
-          setErrorAction={setError}
-          setNeedsRestartAction={setNeedsRestart}
-        />
+        <SlimeSim config={config} setErrorAction={setError} />
       </div>
     );
 
