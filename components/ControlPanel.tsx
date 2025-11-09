@@ -107,7 +107,7 @@ export default function ControlPanel({
             name="display-stretch"
             onInput={toggleDisplay}
           />
-          <label htmlFor="display-stretch">Fit simulation</label>
+          <label htmlFor="display-stretch">Fit image</label>
         </div>
       </Section>
       <Section title="Simulation">
